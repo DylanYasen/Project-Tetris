@@ -47,7 +47,7 @@ public class Group : MonoBehaviour
 		// Default position not valid? Then it's game over
 		if (!isValidGridPos ()) {
 			Debug.Log ("GAME OVER");
-			//Destroy (gameObject);
+			Destroy (gameObject);
 		}
 	}
 	
@@ -74,14 +74,28 @@ public class Group : MonoBehaviour
 				transform.position += new Vector3 (-1, 0, 0);
 		} else if (Input.GetKeyDown (KeyCode.UpArrow)) {
 			transform.Rotate (0, 0, -90);
+            foreach (Transform child in transform)
+            {
+                print("Hello");
+                child.Rotate(0, 0, 90);
+            }
 
 			// See if valid
 			if (isValidGridPos ())
                 // It's valid. Update grid.
 				updateGrid ();
 			else
+            {
                 // It's not valid. revert.
-				transform.Rotate (0, 0, 90);
+                transform.Rotate(0, 0, 90);
+                foreach (Transform child in transform)
+                {
+                    child.Rotate(0, 0, -90);
+                }
+                
+            }
+                
+            
 		}
         // Fall
         else if (Input.GetKey (KeyCode.DownArrow) || Time.time - lastFall >= 1) {
