@@ -28,19 +28,38 @@ public class Spawner : MonoBehaviour {
 
     public void spawnCollection()
     {
-        for (int i = 0; i < 7; i++)
+        //for (int i = 0; i < 7; i++)
+        //{
+        //    int firstInt = Random.Range(0, groups.Length);
+        //    if (!firstSelection.Contains(firstInt)) firstSelection.Add(firstInt);
+        //    int secondInt = Random.Range(0, groups.Length);
+        //    if (!secondSelection.Contains(secondInt)) secondSelection.Add(secondInt);
+        //}
+        while (firstSelection.Count != 7)
         {
             int firstInt = Random.Range(0, groups.Length);
             if (!firstSelection.Contains(firstInt)) firstSelection.Add(firstInt);
+        }
+        while (secondSelection.Count != 7)
+        {
             int secondInt = Random.Range(0, groups.Length);
             if (!secondSelection.Contains(secondInt)) secondSelection.Add(secondInt);
+        }
+        foreach (var num in firstSelection)
+        {
+            print(num);
         }
     }
 
     public void generateNextSequence()
     {
         secondSelection.Clear();
-        for (int i = 0; i < 7; i++)
+        //for (int i = 0; i < 7; i++)
+        //{
+        //    int secondInt = Random.Range(0, groups.Length);
+        //    if (!secondSelection.Contains(secondInt)) secondSelection.Add(secondInt);
+        //}
+        while (secondSelection.Count != 7)
         {
             int secondInt = Random.Range(0, groups.Length);
             if (!secondSelection.Contains(secondInt)) secondSelection.Add(secondInt);
