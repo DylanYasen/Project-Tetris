@@ -1,13 +1,798 @@
 ﻿using UnityEngine;
+using System.Threading;
 using System.Collections;
+using System.Collections.Generic;
+
 
 public class Group : MonoBehaviour
 {
+    public static float lastFall = 0;     // Time since last gravity tick
+    public static bool aimode;
+    public List<move> moves;
+    
+    public struct move
+    {
+        public int piece;
+        public int rotation;
+        public int translation;
+        public int landingheight, rowtrans, coltrans, rowseliminated;
 
-	// Time since last gravity tick
-	float lastFall = 0;
+        public move(int p, int rot, int trans, int l, int rowt, int colt, int rows, double rat)
+        {
+            this.piece = p;
+            this.rotation = rot;
+            this.translation = trans;
+            this.landingheight = l;
+            this.rowtrans = rowt;
+            this.coltrans = colt;
+            this.rowseliminated = rows;
+            this.rating = rat;
+        }
+    }
 
-	bool isValidGridPos ()
+    public move lastmove;
+
+    public int ComputeLandingHeight(int piece, int rotation, int translation) //
+    {
+        int landingheight = 0;
+        int currentheight = 15;
+        int steps = 1;
+        bool valid = true;
+        while(valid) { // Get number of steps to fall
+            foreach (Transform child in transform)
+            {
+                Vector2 v = Grid.roundVec2(child.position);
+                v.x += translation;
+
+                v.y -= steps;
+                if ((!Grid.insideBorder(v)) || (Grid.grid[(int)v.x, (int)v.y] != null &&
+                    Grid.grid[(int)v.x, (int)v.y].parent != transform))
+                {
+                    valid = false;
+                    break;
+                }
+            }
+            if (valid)
+                steps++;
+            else
+                break;
+        }
+
+        currentheight -= steps; // Get current height
+
+        // Get landing height. This currently does not take into account the number of rows eliminated
+        if(piece == 0) // I
+        {
+            if (rotation == 0 || rotation == 2)
+                landingheight = currentheight + 4;
+            else
+                landingheight = currentheight + 1;
+        }
+        else if (piece == 1 || piece == 2) // J, L
+        {
+            if (rotation == 0 || rotation == 2)
+                landingheight = currentheight + 3;
+            else
+                landingheight = currentheight + 3;
+        }
+        else if (piece == 3) // O
+        {
+            landingheight = currentheight + 2;
+        }
+        else if (piece == 4 || piece == 6) // S, Z
+        {
+            if (rotation == 0 || rotation == 2)
+                landingheight = currentheight + 2;
+            else
+                landingheight = currentheight + 3;
+        }
+        else if (piece == 6) // T
+        {
+            if (rotation == 0 || rotation == 2)
+                landingheight = currentheight + 2;
+            else
+                landingheight = currentheight + 3;
+        }
+
+        //print("landingheight: " + landingheight);
+        return landingheight;
+    }
+
+
+    public move ComputeRowTransitions(int piece, int rotation, int translation)
+    {
+        move thismove = new move();
+        int rowtrans = 0, coltrans = 0, holes = 0, wellsums = 0;
+        bool lastfilled = true;
+        bool valid = true;
+        int steps = 0;
+        
+        if (rotation == 1 || rotation == 3) // 1. Rotate piece
+        {
+            transform.Rotate(0, 0, -90);
+        }
+
+        /*
+        foreach (Transform child in transform)
+        {
+            Vector2 v = Grid.roundVec2(child.position);
+            print("PRE " + v.x + ", " + v.y);
+        } */
+
+        while (valid) // Get number of steps to fall
+        {
+            foreach (Transform child in transform)
+            {
+                Vector2 v = Grid.roundVec2(child.position);
+                v.x += translation; // 
+                
+                v.y -= steps;
+                if ((!Grid.insideBorder(v)) || (Grid.grid[(int)v.x, (int)v.y] != null &&
+                    Grid.grid[(int)v.x, (int)v.y].parent != transform))
+                {
+                    //child.Rotate(0, 0, -90);
+
+                    valid = false;
+                    break;
+                }
+            }
+            if (valid)
+                steps++;
+            else
+                break;
+        }
+
+        steps--;
+        foreach (Transform child in transform) // Translate and drop piece
+        {
+            Vector2 v = Grid.roundVec2(child.position);
+            
+            v.x += translation;
+            v.y -= steps;
+            //print("DROPPED: "+v.x + "," + v.y);
+            Grid.grid[(int)v.x, (int)v.y] = child; // 
+        }
+
+        /* Now that piece is in place, run computations */
+        
+        int rowseliminated = 0; // Compute number of rows eliminated
+        for (int i = 0; i < 15; i++) 
+        {
+            bool fullrow = true;
+            for (int j = 0; j < 10; j++)
+            {
+                if (Grid.grid[j, i] == null)
+                    fullrow = false;
+            }
+            if (fullrow)
+                rowseliminated++;
+        }
+        thismove.rowseliminated = rowseliminated;
+
+        for (int i = 0; i < 15; i++) // Compute number of row transitions
+        {
+            bool emptyrow = true;
+            bool fullrow = true;
+            lastfilled = true;
+            int thisrow = 0;
+
+            for (int j = 0; j < 10; j++) // Skip row if full
+            {
+                if (Grid.grid[j, i] == null)
+                    fullrow = false;
+            }
+            if (fullrow)
+                continue;
+
+            for (int k = 0; k < 10; k++) // Skip row if empty
+            {
+                if (Grid.grid[k, i] != null)
+                    emptyrow = false;
+            }
+            if (emptyrow)
+                break;
+
+            for (int j = 0; j < 10; j++)
+            {
+                
+                if (lastfilled)
+                {
+                    if (Grid.grid[j, i] == null)
+                    {
+                        thisrow++;
+                        lastfilled = false;
+                    }
+                    else
+                    {
+                        lastfilled = true;
+                    }
+                }
+                else
+                {
+                    if (Grid.grid[j, i] == null)
+                    {
+                        lastfilled = false;
+                    }
+                    else
+                    {
+                        thisrow++;
+                        lastfilled = true;
+                    }
+                }
+
+                if (thisrow > 0 && j == 9 && Grid.grid[j, i] == null)
+                    thisrow++;
+            }
+            //print("row " + i + ": " + thisrow);
+            rowtrans += thisrow;
+        }
+        thismove.rowtrans = rowtrans;
+        //print("rowtrans: " + rowtrans);
+
+        // 5. Compute number of column transitions
+        for (int i = 0; i < 10; i++)
+        {
+            bool emptycol = true;
+            lastfilled = true;
+            int thiscol = 0;
+
+            for (int k = 0; k < 15; k++)
+            {
+                if (Grid.grid[i, k] != null)
+                    emptycol = false;
+            }
+            if (emptycol)
+                continue;
+
+            for (int j = 0; j < 15; j++)
+            {
+                if (lastfilled)
+                {
+                    if (Grid.grid[i, j] == null)
+                    {
+                        thiscol++;
+                        lastfilled = false;
+                    }
+                    else
+                    {
+                        lastfilled = true;
+                    }
+                }
+                else
+                {
+                    if (Grid.grid[i, j] == null)
+                    {
+                        lastfilled = false;
+                    }
+                    else
+                    {
+                        thiscol++;
+                        lastfilled = true;
+                    }
+                }
+            }
+
+            //print("col " + i + ": " + thiscol);
+            coltrans += thiscol;
+        }
+        thismove.coltrans = coltrans;
+
+
+        // Remove piece
+        foreach (Transform child in transform)
+        {
+            Vector2 v = Grid.roundVec2(child.position);
+            v.x += translation;
+            v.y -= steps;
+
+            Grid.grid[(int)v.x, (int)v.y] = null;
+        }
+
+        // Rotate transform back to initial state if rotated
+        if (rotation == 1 || rotation == 3)
+        {
+            transform.Rotate(0, 0, -90);
+        }
+
+        return thismove;
+    }
+
+    public move ComputeBestMove(int piece)
+    {
+        List<move> moves = new List<move>();
+        move currentmove = new move();
+        // Compute rating for each possible placement of given piece
+
+        for (int i = 0; i < 4; i++) // Iterate thru 4 rotations
+        {
+            if (piece == 0) // I PIECE
+            {
+                if (i != 0 && i != 1)
+                    continue;
+                if (i == 0) // r0: -5 to 4
+                {
+                    for (int j = -5; j < 5; j++) // Iterate thru column translations from leftmost to rightmost
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+                else if (i == 1) // r1: -5 to 1 NOPE, 
+                {
+                    for (int j = -3; j < 2; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+            }
+            else if (piece == 1) // J PIECE
+            {
+                if (i == 0) // r0: -4 to 4
+                {
+                    for (int j = -4; j < 5; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+                else if (i == 1) // r1: -5 to 2 NOPE, -4 to 2
+                {
+                    for (int j = -4; j < 3; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+                else if (i == 2) // r2: -5 to 3
+                {
+                    for (int j = -5; j < 4; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+                else if (i == 3) // r3: -4 to 4
+                {
+                    for (int j = -3; j < 2; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+            }
+            else if (piece == 2) // L PIECE
+            {
+                if (i == 0) // r0: -5 to 3
+                {
+                    for (int j = -5; j < 4; j++) 
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+
+                else if (i == 1) // r1: -5 to 2
+                {
+                    for (int j = -4; j < 4; j++) 
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+                else if (i == 2) // r2: -4 to 4 NOPE
+                {
+                    for (int j = -5; j < 4; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+                else if (i == 3) // r3: -3 to 4 NOPE
+                {
+                    for (int j = -4; j < 3; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+            }
+            else if (piece == 3) // O PIECE
+            {
+                if (i != 0)
+                {
+                    continue;
+                }
+                for (int j = -5; j < 4; j++) // r0: -5 to 3
+                {
+                    move newmove = new move();
+                    newmove = ComputeRowTransitions(piece, i, j);
+                    int landingheight = ComputeLandingHeight(piece, i, j);
+                    double rating = (-4.5 * newmove.landingheight) +
+                             (50 * newmove.rowseliminated) +
+                             (-3.2 * newmove.rowtrans) +
+                             (-9.3 * newmove.coltrans);
+                    moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                    //print("piece: "+piece+", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                }
+            }
+            else if (piece == 4) // S PIECE
+            {
+                if (i != 0 && i != 1)
+                    continue;
+                if (i == 0) // r0: -5 to 2
+                {
+                    for (int j = -5; j < 3; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+                else if (i == 1) // r1: -5 to 3
+                {
+                    for (int j = -5; j < 4; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+            }
+            else if (piece == 5) // T PIECE
+            {
+                if (i == 0) // r0: -5 to 2
+                {
+                    for (int j = -5; j < 3; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+                else if (i == 1) // r1: -4 to 4
+                {
+                    for (int j = -4; j < 5; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+                else if (i == 2) // r2: -3 to 4
+                {
+                    for (int j = -3; j < 5; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+                else if (i == 3) // r3: -5 to 3
+                {
+                    for (int j = -5; j < 4; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+            }
+            else if (piece == 6) // Z PIECE
+            {
+                if (i != 0 && i != 1)
+                    continue;
+                if (i == 0) // r0: -4 to 3
+                {
+                    for (int j = -4; j < 4; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+                else if (i == 1) // r0: -5 to 3
+                {
+                    for (int j = -5; j < 4; j++)
+                    {
+                        move newmove = new move();
+                        newmove = ComputeRowTransitions(piece, i, j);
+                        int landingheight = ComputeLandingHeight(piece, i, j);
+                        double rating = (-4.5 * newmove.landingheight) +
+                                 (50 * newmove.rowseliminated) +
+                                 (-3.2 * newmove.rowtrans) +
+                                 (-9.3 * newmove.coltrans);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                    }
+                }
+            }
+        }
+
+        // Get move with highest rating
+        move bestmove;
+        //print("moves.Count: " + moves.Count);
+        moves.Sort((s1, s2) => s1.rating.CompareTo(s2.rating));
+        bestmove = moves[moves.Count-1];
+        return bestmove;
+    }
+
+    /* 
+    public IEnumerator Rotate()
+    {
+        yield return new WaitForSeconds(1.0f);
+        transform.Rotate(0, 0, -90);
+        foreach (Transform child in transform)
+        {
+            child.Rotate(0, 0, 90);
+        }
+
+        if (isValidGridPos())
+            updateGrid();
+        else
+        {
+            transform.Rotate(0, 0, 90);
+            foreach (Transform child in transform)
+            {
+                child.Rotate(0, 0, -90);
+            }
+        }
+    }
+
+    public IEnumerator TranslateR()
+    {
+        yield return new WaitForSeconds(1.0f);
+        transform.position += new Vector3(1, 0, 0);
+
+        if (isValidGridPos())
+            updateGrid();
+        else
+            transform.position += new Vector3(-1, 0, 0);
+    }
+
+    public IEnumerator TranslateL()
+    {
+        yield return new WaitForSeconds(1.0f);
+        transform.position += new Vector3(-1, 0, 0);
+
+        if (isValidGridPos())
+            updateGrid();
+        else
+            transform.position += new Vector3(1, 0, 0);
+    }
+
+    bool dropped = false;
+    public IEnumerator Drop()
+    {
+        yield return new WaitForSeconds(1.0f);
+        // Modify position
+        transform.position += new Vector3(0, -1, 0);
+        // See if valid
+        if (isValidGridPos())
+        {
+            // It's valid. Update grid.
+            updateGrid();
+        }
+        else
+        {
+            // It's not valid. revert.
+            transform.position += new Vector3(0, 1, 0);
+
+            // Clear filled horizontal lines
+            Grid.deleteFullRows();
+
+            // Spawn next Group
+            FindObjectOfType<Spawner>().spawnNext();
+            //FindObjectOfType<Spawner>().spawnCollection();
+            // Disable script
+            enabled = false;
+            dropped = true;
+        }
+    }
+    */
+
+    public IEnumerator Wait()
+    {
+        yield return new WaitForSeconds((float)3000);
+    }
+
+    public void DoMove(int rotation, int translation)
+    {   
+        // Rotate
+        for(int i=0; i<rotation; i++)
+        {
+            //StartCoroutine(Rotate());
+            transform.Rotate(0, 0, -90);
+            foreach (Transform child in transform)
+            {
+                child.Rotate(0, 0, 90);
+            }
+
+            if (isValidGridPos())
+                updateGrid();
+            else
+            {
+                transform.Rotate(0, 0, 90);
+                foreach (Transform child in transform)
+                {
+                    child.Rotate(0, 0, -90);
+                }
+            }
+        }
+
+        // Translate
+        if (translation > 0)
+        {
+            for (int i = 0; i < Mathf.Abs(translation); i++)
+            {
+                //StartCoroutine(TranslateR());
+                transform.position += new Vector3(1, 0, 0);
+
+                if (isValidGridPos())
+                    updateGrid();
+                else
+                    transform.position += new Vector3(-1, 0, 0);
+            }
+        }
+        else if (translation < 0)
+        {
+            for (int i = 0; i < Mathf.Abs(translation); i++)
+            {
+                //StartCoroutine(TranslateL());
+                transform.position += new Vector3(-1, 0, 0);
+
+                if (isValidGridPos())
+                    updateGrid();
+                else
+                    transform.position += new Vector3(1, 0, 0);
+            }
+        }
+
+        // Drop
+        for(int i=0; i<20; i++)
+        {
+            //StartCoroutine(Drop());
+            // Modify position
+            transform.position += new Vector3(0, -1, 0);
+            // See if valid
+            if (isValidGridPos())
+            {
+                // It's valid. Update grid.
+                updateGrid();
+            }
+            else
+            {
+                // It's not valid. revert.
+                transform.position += new Vector3(0, 1, 0);
+
+                // Clear filled horizontal lines
+                Grid.deleteFullRows();
+
+                // Spawn next Group
+                FindObjectOfType<Spawner>().spawnNext();
+                //FindObjectOfType<Spawner>().spawnCollection();
+                // Disable script
+                enabled = false;
+                break;
+            }
+            //StartCoroutine(Wait());
+        }
+    }
+
+
+	public bool isValidGridPos ()
 	{
 		foreach (Transform child in transform) {
 			Vector2 v = Grid.roundVec2 (child.position);
@@ -22,7 +807,7 @@ public class Group : MonoBehaviour
 		return true;
 	}
 
-	void updateGrid ()
+	public void updateGrid ()
 	{
 		for (int y= 0; y < Grid.h; ++y) {
 			for (int x = 0; x < Grid.w; ++x) {
@@ -41,6 +826,8 @@ public class Group : MonoBehaviour
 	}
 
 
+    
+
 	// Use this for initialization
 	void Start ()
 	{
@@ -49,79 +836,263 @@ public class Group : MonoBehaviour
 			Debug.Log ("GAME OVER");
 			Destroy (gameObject);
 		}
-	}
-	
-	// Update is called once per frame
-	void Update ()
+    }
+    
+    bool movedone = false;
+    bool evaluationdone = false;
+    int rots, trans;
+    move bestmove = new move();
+    // Update is called once per frame
+    void Update ()
 	{
-		if (Input.GetKeyDown (KeyCode.LeftArrow)) {
-			transform.position += new Vector3 (-1, 0, 0);
-
-			if (isValidGridPos ())
-				updateGrid ();
-			else
-				transform.position += new Vector3 (1, 0, 0);
-		} else if (Input.GetKeyDown (KeyCode.RightArrow)) {
-			// Modify position
-			transform.position += new Vector3 (1, 0, 0);
-
-			// See if valid
-			if (isValidGridPos ())
-                // It's valid. Update grid.
-				updateGrid ();
-			else
-                // It's not valid. revert.
-				transform.position += new Vector3 (-1, 0, 0);
-		} else if (Input.GetKeyDown (KeyCode.UpArrow)) {
-			transform.Rotate (0, 0, -90);
-            foreach (Transform child in transform)
+        if (Group.aimode == false) // 1P MODE
+        {
+            if (Input.GetKeyDown(KeyCode.LeftArrow))
             {
-                print("Hello");
-                child.Rotate(0, 0, 90);
+                transform.position += new Vector3(-1, 0, 0);
+
+                if (isValidGridPos())
+                    updateGrid();
+                else
+                    transform.position += new Vector3(1, 0, 0);
             }
-
-			// See if valid
-			if (isValidGridPos ())
-                // It's valid. Update grid.
-				updateGrid ();
-			else
+            else if (Input.GetKeyDown(KeyCode.RightArrow))
             {
-                // It's not valid. revert.
-                transform.Rotate(0, 0, 90);
+                // Modify position
+                transform.position += new Vector3(1, 0, 0);
+
+                // See if valid
+                if (isValidGridPos())
+                    // It's valid. Update grid.
+                    updateGrid();
+                else
+                    // It's not valid. revert.
+                    transform.position += new Vector3(-1, 0, 0);
+            }
+            else if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                transform.Rotate(0, 0, -90);
                 foreach (Transform child in transform)
                 {
-                    child.Rotate(0, 0, -90);
+                    //print("Hello");
+                    child.Rotate(0, 0, 90);
                 }
-                
+
+                // See if valid
+                if (isValidGridPos())
+                    // It's valid. Update grid.
+                    updateGrid();
+                else
+                {
+                    // It's not valid. revert.
+                    transform.Rotate(0, 0, 90);
+                    foreach (Transform child in transform)
+                    {
+                        child.Rotate(0, 0, -90);
+                    }
+
+                }
+
             }
-                
+            // Fall
+            else if (Input.GetKey(KeyCode.DownArrow) || Time.time - lastFall >= 1)
+            {
+                // Modify position
+                transform.position += new Vector3(0, -1, 0);
+
+                // See if valid
+                if (isValidGridPos())
+                {
+                    // It's valid. Update grid.
+                    updateGrid();
+                }
+                else
+                {
+                    // It's not valid. revert.
+                    transform.position += new Vector3(0, 1, 0);
+
+                    // Clear filled horizontal lines
+                    Grid.deleteFullRows();
+
+                    // Spawn next Group
+                    FindObjectOfType<Spawner>().spawnNext();
+
+                    // Disable script
+                    enabled = false;
+                }
+
+                lastFall = Time.time;
+            }
+        }
+        else // AI MODE
+        {
+            /* if(Spawner.nextGroup == 0 ||
+               Spawner.nextGroup == 1 ||
+               Spawner.nextGroup == 2 ||
+               Spawner.nextGroup == 3 ||
+               Spawner.nextGroup == 4 ||
+               Spawner.nextGroup == 5 ||
+               Spawner.nextGroup == 6)
+            {
+                //StartCoroutine(Wait());
+                move bestmove = ComputeBestMove(Spawner.nextGroup);
+                print("bestmove: " + bestmove.rotation + ", " + bestmove.translation);
+                DoMove(bestmove.rotation, bestmove.translation);
+            }            
+            */
             
-		}
-        // Fall
-        else if (Input.GetKey (KeyCode.DownArrow) || Time.time - lastFall >= 1) {
-			// Modify position
-			transform.position += new Vector3 (0, -1, 0);
+            if (!evaluationdone)
+            {
+                bestmove = ComputeBestMove(Spawner.nextGroup);
+                print("piece: " + bestmove.piece + ", rotation: " + bestmove.rotation + ", translation: " + bestmove.translation + ", landingheight: " + bestmove.landingheight + ", rowseliminated: " + bestmove.rowseliminated + ", rowtrans: " + bestmove.rowtrans + ", coltrans: " + bestmove.coltrans + ", rating: " + bestmove.rating);
 
-			// See if valid
-			if (isValidGridPos ()) {
-				// It's valid. Update grid.
-				updateGrid ();
-			} else {
-				// It's not valid. revert.
-				transform.position += new Vector3 (0, 1, 0);
+                rots = bestmove.rotation;
+                trans = bestmove.translation;
+                evaluationdone = true;
+            }
+            if (evaluationdone && Time.time - lastFall >= 0.1)
+            {
+                if(rots > 0)
+                {
+                    transform.Rotate(0, 0, -90);
+                    foreach (Transform child in transform)
+                    {
+                        child.Rotate(0, 0, 90);
+                    }
 
-				// Clear filled horizontal lines
-				Grid.deleteFullRows ();
+                    if (isValidGridPos())
+                        updateGrid();
+                    else
+                    {
+                        transform.Rotate(0, 0, 90);
+                        foreach (Transform child in transform)
+                        {
+                            child.Rotate(0, 0, -90);
+                        }
+                    }
+                    rots--;
+                    lastFall = Time.time;
+                }
 
-				// Spawn next Group
-				FindObjectOfType<Spawner> ().spawnNext ();
+                if (trans!=0)
+                {
+                    if(trans < 0)
+                    {
+                        transform.position += new Vector3(-1, 0, 0);
 
-				// Disable script
-				enabled = false;
-			}
+                        if (isValidGridPos())
+                            updateGrid();
+                        else
+                            transform.position += new Vector3(1, 0, 0);
+                        trans++;
+                        lastFall = Time.time;
+                    }
+                    else
+                    {
+                        transform.position += new Vector3(1, 0, 0);
 
-			lastFall = Time.time;
-		}
+                        if (isValidGridPos())
+                            updateGrid();
+                        else
+                            transform.position += new Vector3(-1, 0, 0);
+                        trans--;
+                        lastFall = Time.time;
+                    }
+                }
+
+                if(rots==0 && trans == 0) // Rotated and translated. Ok to drop piece
+                {
+                    transform.position += new Vector3(0, -1, 0);
+
+                    if (isValidGridPos())
+                    {
+                        updateGrid();
+                    }
+                    else
+                    {
+                        transform.position += new Vector3(0, 1, 0);
+                        Grid.deleteFullRows();
+                        FindObjectOfType<Spawner>().spawnNext();
+                        enabled = false;
+                        evaluationdone = false;
+                    }
+                    lastFall = Time.time;
+                }
+            }
+            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            {
+                transform.position += new Vector3(-1, 0, 0);
+
+                if (isValidGridPos())
+                    updateGrid();
+                else
+                    transform.position += new Vector3(1, 0, 0);
+            }
+            else if (Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                // Modify position
+                transform.position += new Vector3(1, 0, 0);
+
+                // See if valid
+                if (isValidGridPos())
+                    // It's valid. Update grid.
+                    updateGrid();
+                else
+                    // It's not valid. revert.
+                    transform.position += new Vector3(-1, 0, 0);
+            }
+            else if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                transform.Rotate(0, 0, -90);
+                foreach (Transform child in transform)
+                {
+                    //print("Hello");
+                    child.Rotate(0, 0, 90);
+                }
+
+                // See if valid
+                if (isValidGridPos())
+                    // It's valid. Update grid.
+                    updateGrid();
+                else
+                {
+                    // It's not valid. revert.
+                    transform.Rotate(0, 0, 90);
+                    foreach (Transform child in transform)
+                    {
+                        child.Rotate(0, 0, -90);
+                    }
+                }
+            }
+            else if (Input.GetKey(KeyCode.DownArrow) || Time.time - lastFall >= 1)
+            {
+                // Modify position
+                transform.position += new Vector3(0, -1, 0);
+
+                // See if valid
+                if (isValidGridPos())
+                {
+                    // It's valid. Update grid.
+                    updateGrid();
+                }
+                else
+                {
+                    // It's not valid. revert.
+                    transform.position += new Vector3(0, 1, 0);
+
+                    // Clear filled horizontal lines
+                    Grid.deleteFullRows();
+
+                    // Spawn next Group
+                    FindObjectOfType<Spawner>().spawnNext();
+
+                    // Disable script
+                    enabled = false;
+                }
+
+                lastFall = Time.time;
+            }
+        }
 
 	}
 }
