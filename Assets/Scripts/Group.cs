@@ -1,9 +1,20 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class Group : MonoBehaviour
 {
 
+    public int[] permutationOneX;
+    public int[] permutationOneY;
+    public int[] permutationTwoX;
+    public int[] permutationTwoY;
+    public int[] permutationThreeX;
+    public int[] permutationThreeY;
+    public int[] permutationFourX;
+    public int[] permutationFourY;
+    //public int[][] permutationArray;
+    public int currentPermutation = 0;
 	// Time since last gravity tick
 	float lastFall = 0;
 
@@ -40,6 +51,40 @@ public class Group : MonoBehaviour
 		}
 	}
 
+    void rotateGroup()
+    {
+        int[] permutationCurrentX;
+        int[] permutationCurrentY;
+        if (currentPermutation == 0)
+        {
+            permutationCurrentX = permutationOneX;
+            permutationCurrentY = permutationOneY;
+        }
+        else if (currentPermutation == 1)
+        {
+            permutationCurrentX = permutationTwoX;
+            permutationCurrentY = permutationTwoY;
+        }
+        else if (currentPermutation == 2)
+        {
+            permutationCurrentX = permutationThreeX;
+            permutationCurrentY = permutationThreeY;
+        }
+        else
+        {
+            permutationCurrentX = permutationFourX;
+            permutationCurrentY = permutationFourY;
+        }
+        Transform childOne = transform.GetChild(0);
+        Transform childTwo = transform.GetChild(1);
+        Transform childThree = transform.GetChild(2);
+        Transform childFour = transform.GetChild(3);
+
+        childOne.localPosition = new Vector2(permutationCurrentX[0], permutationCurrentY[0]);
+        childTwo.localPosition = new Vector2(permutationCurrentX[1], permutationCurrentY[1]);
+        childThree.localPosition = new Vector2(permutationCurrentX[2], permutationCurrentY[2]);
+        childFour.localPosition = new Vector2(permutationCurrentX[3], permutationCurrentY[3]);
+    }
 
 	// Use this for initialization
 	void Start ()
@@ -73,12 +118,16 @@ public class Group : MonoBehaviour
                 // It's not valid. revert.
 				transform.position += new Vector3 (-1, 0, 0);
 		} else if (Input.GetKeyDown (KeyCode.UpArrow)) {
-			transform.Rotate (0, 0, -90);
-            foreach (Transform child in transform)
-            {
-                print("Hello");
-                child.Rotate(0, 0, 90);
-            }
+            if (currentPermutation != 3) currentPermutation++;
+            else currentPermutation = 0;
+            rotateGroup();
+            //print(transform.name);
+            //transform.Rotate (0, 0, -90);
+            //foreach (Transform child in transform)
+            //{
+            //    //print("Hello");
+            //    child.Rotate(0, 0, 90);
+            //}
 
 			// See if valid
 			if (isValidGridPos ())
@@ -87,11 +136,14 @@ public class Group : MonoBehaviour
 			else
             {
                 // It's not valid. revert.
-                transform.Rotate(0, 0, 90);
-                foreach (Transform child in transform)
-                {
-                    child.Rotate(0, 0, -90);
-                }
+                if (currentPermutation != 0) currentPermutation--;
+                else currentPermutation = 3;
+                rotateGroup();
+                //transform.Rotate(0, 0, 90);
+                //foreach (Transform child in transform)
+                //{
+                //    child.Rotate(0, 0, -90);
+                //}
                 
             }
                 
