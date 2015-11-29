@@ -16,6 +16,7 @@ public class Group : MonoBehaviour
         public int rotation;
         public int translation;
         public int landingheight, rowtrans, coltrans, rowseliminated;
+        public double rating;
 
         public move(int p, int rot, int trans, int l, int rowt, int colt, int rows, double rat)
         {
