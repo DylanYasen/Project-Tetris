@@ -10,20 +10,46 @@ public class Spawner : MonoBehaviour {
     public static List<int> firstSelection;
     public static List<int> secondSelection;
     public static int nextGroup;
+    private int nextnextGroup = -1;
+    
+    public Transform previewPos;
 
     public void spawnNext()
     {
-        //int i = Random.Range(0, groups.Length);
-
-        //Instantiate(groups[i], transform.position, Quaternion.identity);
+        if(nextnextGroup == -1){
+            nextGroup = GenerateNextRandomGroup();
+            Instantiate(groups[nextGroup], transform.position, Quaternion.identity); 
+        
+        }
+        else{
+            nextGroup = nextnextGroup;
+            Instantiate(groups[nextGroup], transform.position, Quaternion.identity);   
+        }
+        
+        nextnextGroup = GenerateNextRandomGroup();    
+        Preview(groups[nextnextGroup]);
+    }
+    
+    private GameObject previewObj;
+    void Preview(GameObject obj){
+        
+        if(previewObj != null)
+            DestroyImmediate(previewObj);
+            
+        previewObj = Instantiate(obj, previewPos.position, Quaternion.identity) as GameObject;
+        previewObj.GetComponent<Group>().enabled = false;   
+        previewObj.transform.localScale = new Vector3(0.5f,0.5f,1);
+    }
+    
+    private int GenerateNextRandomGroup(){      
         if (firstSelection.Count == 0)
         {
             firstSelection = new List<int>(secondSelection);
             generateNextSequence();
         }
-        nextGroup = firstSelection[0];
+        int randResult = firstSelection[0];
         firstSelection.RemoveAt(0);
-        Instantiate(groups[nextGroup], transform.position, Quaternion.identity);
+        return randResult;
     }
 
     public void spawnCollection()
