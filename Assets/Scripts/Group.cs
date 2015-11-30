@@ -86,6 +86,144 @@ public class Group : MonoBehaviour
         childFour.localPosition = new Vector2(permutationCurrentX[3], permutationCurrentY[3]);
     }
 
+    // KICK SYSTEM
+    bool kick(int prior, int next)
+    {
+        if (transform.name != "GroupI 1(Clone)")
+        {
+            if (prior == 0 && next == 1)
+            {
+                if (tryTest(-1, 0)) return true;
+                else if (tryTest(-1, 1)) return true;
+                else if (tryTest(0, -2)) return true;
+                else if (tryTest(-1, -2)) return true;
+            }
+            else if (prior == 1 && next == 0)
+            {
+                if (tryTest(1, 0)) return true;
+                else if (tryTest(1, -1)) return true;
+                else if (tryTest(0, 2)) return true;
+                else if (tryTest(1, 2)) return true;
+            }
+            else if (prior == 1 && next == 2)
+            {
+                if (tryTest(1, 0)) return true;
+                else if (tryTest(1, -1)) return true;
+                else if (tryTest(0, 2)) return true;
+                else if (tryTest(1, 2)) return true;
+            }
+            else if (prior == 2 && next == 1)
+            {
+                if (tryTest(-1, 0)) return true;
+                else if (tryTest(-1, 1)) return true;
+                else if (tryTest(0, -2)) return true;
+                else if (tryTest(-1, -2)) return true;
+            }
+            else if (prior == 2 && next == 3)
+            {
+                if (tryTest(1, 0)) return true;
+                else if (tryTest(1, 1)) return true;
+                else if (tryTest(0, -2)) return true;
+                else if (tryTest(1, -2)) return true;
+            }
+            else if (prior == 3 && next == 2)
+            {
+                if (tryTest(-1, 0)) return true;
+                else if (tryTest(-1, -1)) return true;
+                else if (tryTest(0, 2)) return true;
+                else if (tryTest(-1, 2)) return true;
+            }
+            else if (prior == 3 && next == 0)
+            {
+                if (tryTest(-1, 0)) return true;
+                else if (tryTest(-1, -1)) return true;
+                else if (tryTest(0, 2)) return true;
+                else if (tryTest(-1, 2)) return true;
+            }
+            else if (prior == 0 && next == 3)
+            {
+                if (tryTest(1, 0)) return true;
+                else if (tryTest(1, 1)) return true;
+                else if (tryTest(0, -2)) return true;
+                else if (tryTest(1, -2)) return true;
+            }
+            return false;
+        }
+
+        else
+        {
+            print("hehe");
+            if (prior == 0 && next == 1)
+            {
+                if (tryTest(-2, 0)) return true;
+                else if (tryTest(1, 0)) return true;
+                else if (tryTest(-2, -1)) return true;
+                else if (tryTest(1, 2)) return true;
+            }
+            else if (prior == 1 && next == 0)
+            {
+                if (tryTest(2, 0)) return true;
+                else if (tryTest(-1, 0)) return true;
+                else if (tryTest(2, 1)) return true;
+                else if (tryTest(-1, -2)) return true;
+            }
+            else if (prior == 1 && next == 2)
+            {
+                if (tryTest(-1, 0)) return true;
+                else if (tryTest(2, 0)) return true;
+                else if (tryTest(-1, 2)) return true;
+                else if (tryTest(2, -1)) return true;
+            }
+            else if (prior == 2 && next == 1)
+            {
+                if (tryTest(1, 0)) return true;
+                else if (tryTest(-2, 0)) return true;
+                else if (tryTest(1, -2)) return true;
+                else if (tryTest(-2, 1)) return true;
+            }
+            else if (prior == 2 && next == 3)
+            {
+                if (tryTest(2, 0)) return true;
+                else if (tryTest(-1, 0)) return true;
+                else if (tryTest(2, 1)) return true;
+                else if (tryTest(-1, -2)) return true;
+            }
+            else if (prior == 3 && next == 2)
+            {
+                if (tryTest(-2, 0)) return true;
+                else if (tryTest(1, 0)) return true;
+                else if (tryTest(-2, -1)) return true;
+                else if (tryTest(1, 2)) return true;
+            }
+            else if (prior == 3 && next == 0)
+            {
+                if (tryTest(1, 0)) return true;
+                else if (tryTest(-2, 0)) return true;
+                else if (tryTest(1, -2)) return true;
+                else if (tryTest(-2, 1)) return true;
+            }
+            else if (prior == 0 && next == 3)
+            {
+                if (tryTest(-1, 0)) return true;
+                else if (tryTest(2, 0)) return true;
+                else if (tryTest(-1, 2)) return true;
+                else if (tryTest(2, -1)) return true;
+            }
+            return false;
+        }
+    }
+
+    bool tryTest(int x, int y)
+    {
+        transform.position += new Vector3(x, y, 0);
+        if (isValidGridPos())
+        {
+            updateGrid();
+            return true;
+        }
+        else transform.position += new Vector3(-(x), -(y), 0);
+        return false;
+    }
 	// Use this for initialization
 	void Start ()
 	{
@@ -118,6 +256,7 @@ public class Group : MonoBehaviour
                 // It's not valid. revert.
 				transform.position += new Vector3 (-1, 0, 0);
 		} else if (Input.GetKeyDown (KeyCode.UpArrow)) {
+            int storedCurrent = currentPermutation;
             if (currentPermutation != 3) currentPermutation++;
             else currentPermutation = 0;
             rotateGroup();
@@ -135,10 +274,13 @@ public class Group : MonoBehaviour
 				updateGrid ();
 			else
             {
-                // It's not valid. revert.
-                if (currentPermutation != 0) currentPermutation--;
-                else currentPermutation = 3;
-                rotateGroup();
+                // It's not valid. revert.     
+                if (!kick(storedCurrent, currentPermutation))
+                {
+                    if (currentPermutation != 0) currentPermutation--;
+                    else currentPermutation = 3;
+                    rotateGroup();
+                }
                 //transform.Rotate(0, 0, 90);
                 //foreach (Transform child in transform)
                 //{
