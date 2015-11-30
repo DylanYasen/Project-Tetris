@@ -11,7 +11,7 @@ public class Grid : MonoBehaviour {
 
 	//public static Score score;
 	public static int rowsCleared;
-	//public 
+	//public static Score score; 
 
 
 
@@ -83,13 +83,10 @@ public class Grid : MonoBehaviour {
         }
 
 		/*
-		GameObject scoreObject = GameObject.FindWithTag ("Score");
-		if (scoreObject != null) {
-			scoreText = scoreObject.GetComponent <Score> ();
 
-		}
 */
-		Score.updateScore (rowsCleared);
+		//score.updateScore (rowsCleared);
+		FindObjectOfType<Score>().updateScore (rowsCleared);
 
     }
 

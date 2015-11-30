@@ -5,20 +5,28 @@ using UnityEngine.UI;
 public class Score : MonoBehaviour {
 
 
-	public static Text scoreText;
-	public static int score;
+	public Text scoreText;
+	public int score;
 
 	// Use this for initialization
 	void Start () {
 		score = 0;
-		//scoreText.text = "Score: " + score.ToString();
+		//scoreText = (GameObject)GameObject.FindWithTag ("score");
+		//	.GetComponent<Text>();
+
+		GameObject scoreObject = GameObject.FindWithTag ("score");
+		if (scoreObject != null) {
+			scoreText = scoreObject.GetComponent <Text> ();
+			
+		}
+		scoreText.text = "Score: " + score.ToString();
 	}
 
 
 	
 
 
-	public static void updateScore(int rowsCleared)
+	public void updateScore(int rowsCleared)
 	{
 		switch (rowsCleared) {
 		case 1:
@@ -34,7 +42,7 @@ public class Score : MonoBehaviour {
 			score += 1200;
 			break;
 		}
-		//scoreText.text = "Score: " + score.ToString();
+		scoreText.text = "Score: " + score.ToString();
 	}
 
 	// Update is called once per frame
