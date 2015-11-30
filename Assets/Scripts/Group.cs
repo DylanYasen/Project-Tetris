@@ -237,6 +237,10 @@ public class Group : MonoBehaviour
 	// Update is called once per frame
 	void Update ()
 	{
+        //GameObject ghostPiece = Instantiate(this.gameObject, transform.position += new Vector3(0, -5, 0), Quaternion.identity) as GameObject;
+        //SpriteRenderer sprite = gameObject.GetComponent<SpriteRenderer>();
+        //sprite.material.color = new Color(1.0f, 1.0f, 1.0f, .1f);
+        
 		if (Input.GetKeyDown (KeyCode.LeftArrow)) {
 			transform.position += new Vector3 (-1, 0, 0);
 
