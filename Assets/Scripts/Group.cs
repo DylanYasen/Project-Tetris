@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 
 public class Group : MonoBehaviour
@@ -46,6 +46,7 @@ public class Group : MonoBehaviour
 	{
 		// Default position not valid? Then it's game over
 		if (!isValidGridPos ()) {
+
 			Debug.Log ("GAME OVER");
 			Destroy (gameObject);
 		}

@@ -1,11 +1,20 @@
 ﻿using UnityEngine;
 using System.Collections;
+using UnityEngine.UI;
 
 public class Grid : MonoBehaviour {
 
     public static int w = 10;
     public static int h = 20;
     public static Transform[,] grid = new Transform[w, h];
+
+
+	//public static Score score;
+	public static int rowsCleared;
+	//public 
+
+
+
 
     public static Vector2 roundVec2(Vector2 v)
     {
@@ -61,19 +70,34 @@ public class Grid : MonoBehaviour {
 
     public static void deleteFullRows()
     {
+		rowsCleared = 0; 
         for (int y= 0; y < h; ++y)
         {
             if (isRowFull(y))
             {
+				rowsCleared++;
                 deleteRow(y);
                 decreaseRowsAbove(y + 1);
                 --y;
             }
         }
+
+		/*
+		GameObject scoreObject = GameObject.FindWithTag ("Score");
+		if (scoreObject != null) {
+			scoreText = scoreObject.GetComponent <Score> ();
+
+		}
+*/
+		Score.updateScore (rowsCleared);
+
     }
+
+
 	// Use this for initialization
-	void Start () {
-	
+	void Start () 
+	{
+		//score = new Score();
 	}
 	
 	// Update is called once per frame
