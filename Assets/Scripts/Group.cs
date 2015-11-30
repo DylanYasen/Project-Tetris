@@ -15,10 +15,10 @@ public class Group : MonoBehaviour
         public int piece;
         public int rotation;
         public int translation;
-        public int landingheight, rowtrans, coltrans, rowseliminated;
+        public int landingheight, rowtrans, coltrans, rowseliminated, holes, wellsums;
         public double rating;
 
-        public move(int p, int rot, int trans, int l, int rowt, int colt, int rows, double rat)
+        public move(int p, int rot, int trans, int l, int rowt, int colt, int rows, int ho, int wells, double rat)
         {
             this.piece = p;
             this.rotation = rot;
@@ -27,7 +27,9 @@ public class Group : MonoBehaviour
             this.rowtrans = rowt;
             this.coltrans = colt;
             this.rowseliminated = rows;
+            this.holes = ho;
             this.rating = rat;
+            this.wellsums = wells;
         }
     }
 
@@ -278,6 +280,137 @@ public class Group : MonoBehaviour
         }
         thismove.coltrans = coltrans;
 
+        // 6. Compute number of holes
+        for(int i=0; i<15; i++)
+        {
+            for(int j=0; j<10; j++)
+            {
+                if (Grid.grid[j, i] == null && Grid.grid[j, i+1] != null)
+                    holes++;
+            }
+        }
+        thismove.holes = holes;
+
+        // 7. Compute well sums
+        for (int i = 0; i < 10; i++)
+        {
+            int thiscol = 0;
+            bool well = false;
+            lastfilled = true;
+            for (int j = 0; j < 15; j++)
+            {
+                if (lastfilled)
+                {
+                    if (Grid.grid[i, j] == null)
+                    {
+                        if (i == 0) // Leftmost column
+                        {
+                            if (Grid.grid[i + 1, j] != null)
+                            {
+                                well = true;
+                                thiscol++;
+                                lastfilled = false;
+                            }
+                            else
+                            {
+                                well = false;
+                                lastfilled = false;
+                            }
+                        }
+                        else if (i == 9) // Rightmost column
+                        {
+                            if (Grid.grid[i - 1, j] != null)
+                            {
+                                well = true;
+                                thiscol++;
+                                lastfilled = false;
+                            }
+                            else
+                            {
+                                well = false;
+                                lastfilled = false;
+                            }
+                        }
+                        else // In between leftmost and rightmost columns
+                        {
+                            if (Grid.grid[i - 1, j] != null && Grid.grid[i + 1, j] != null)
+                            {
+                                well = true;
+                                thiscol++;
+                                lastfilled = false;
+                            }
+                            else
+                            {
+                                well = false;
+                                lastfilled = false;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        well = false;
+                        lastfilled = true;
+                    }
+                }
+                else
+                {
+                    if (Grid.grid[i, j] == null)
+                    {
+                        if (i == 0) // Leftmost column
+                        {
+                            if (Grid.grid[i + 1, j] != null)
+                            {
+                                well = true;
+                                thiscol++;
+                                lastfilled = false;
+                            }
+                            else
+                            {
+                                well = false;
+                                lastfilled = false;
+                            }
+                        }
+                        else if (i == 9) // Rightmost column
+                        {
+                            if (Grid.grid[i - 1, j] != null)
+                            {
+                                well = true;
+                                thiscol++;
+                                lastfilled = false;
+                            }
+                            else
+                            {
+                                well = false;
+                                lastfilled = false;
+                            }
+                        }
+                        else // In between leftmost and rightmost columns
+                        {
+                            if (Grid.grid[i - 1, j] != null && Grid.grid[i + 1, j] != null)
+                            {
+                                well = true;
+                                thiscol++;
+                                lastfilled = false;
+                            }
+                            else
+                            {
+                                well = false;
+                                lastfilled = true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        well = false;
+                        lastfilled = true;
+                    }
+                }
+            }
+            if (well)
+                wellsums += thiscol;
+            //print("col" + i + ": " + thiscol);
+        }
+        thismove.wellsums = wellsums;
 
         // Remove piece
         foreach (Transform child in transform)
@@ -295,6 +428,8 @@ public class Group : MonoBehaviour
             transform.Rotate(0, 0, -90);
         }
 
+        print("piece: " + thismove.piece + ", rotation: " + thismove.rotation + ", translation: " + thismove.translation + ", landingheight: " + thismove.landingheight + ", rowseliminated: " + thismove.rowseliminated + ", rowtrans: " + thismove.rowtrans + ", coltrans: " + thismove.coltrans + ", holes: " + thismove.holes + ", wellsums: " + thismove.wellsums + ", rating: " + thismove.rating);
+        
         return thismove;
     }
 
@@ -320,8 +455,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                         //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
                     }
                 }
@@ -335,9 +472,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
             }
@@ -353,9 +491,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
                 else if (i == 1) // r1: -5 to 2 NOPE, -4 to 2
@@ -368,9 +507,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
                 else if (i == 2) // r2: -5 to 3
@@ -383,9 +523,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
                 else if (i == 3) // r3: -4 to 4
@@ -398,9 +539,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
             }
@@ -416,9 +558,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
 
@@ -432,9 +575,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
                 else if (i == 2) // r2: -4 to 4 NOPE
@@ -447,9 +591,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
                 else if (i == 3) // r3: -3 to 4 NOPE
@@ -462,9 +607,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
             }
@@ -482,9 +628,10 @@ public class Group : MonoBehaviour
                     double rating = (-4.5 * newmove.landingheight) +
                              (50 * newmove.rowseliminated) +
                              (-3.2 * newmove.rowtrans) +
-                             (-9.3 * newmove.coltrans);
-                    moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                    //print("piece: "+piece+", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                    moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                 }
             }
             else if (piece == 4) // S PIECE
@@ -501,9 +648,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
                 else if (i == 1) // r1: -5 to 3
@@ -516,9 +664,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
             }
@@ -534,9 +683,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
                 else if (i == 1) // r1: -4 to 4
@@ -549,9 +699,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
                 else if (i == 2) // r2: -3 to 4
@@ -564,9 +715,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
                 else if (i == 3) // r3: -5 to 3
@@ -579,9 +731,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
             }
@@ -599,9 +752,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
                 else if (i == 1) // r0: -5 to 3
@@ -614,9 +768,10 @@ public class Group : MonoBehaviour
                         double rating = (-4.5 * newmove.landingheight) +
                                  (50 * newmove.rowseliminated) +
                                  (-3.2 * newmove.rowtrans) +
-                                 (-9.3 * newmove.coltrans);
-                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, rating));
-                        //print("piece: " + piece + ", rotation: " + i + ", translation: " + j + ", landingheight: " + landingheight + ", rowseliminated: " + newmove.rowseliminated + ", rowtrans: " + newmove.rowtrans + ", coltrans: " + newmove.coltrans + ", rating: " + rating);
+                                 (-9.3 * newmove.coltrans) +
+                                 (-7.9 * newmove.holes) +
+                                 (-3.4 * newmove.wellsums);
+                        moves.Add(new move(piece, i, j, landingheight, newmove.rowtrans, newmove.coltrans, newmove.rowseliminated, newmove.holes, newmove.wellsums, rating));
                     }
                 }
             }
@@ -945,7 +1100,7 @@ public class Group : MonoBehaviour
             if (!evaluationdone)
             {
                 bestmove = ComputeBestMove(Spawner.nextGroup);
-                print("piece: " + bestmove.piece + ", rotation: " + bestmove.rotation + ", translation: " + bestmove.translation + ", landingheight: " + bestmove.landingheight + ", rowseliminated: " + bestmove.rowseliminated + ", rowtrans: " + bestmove.rowtrans + ", coltrans: " + bestmove.coltrans + ", rating: " + bestmove.rating);
+                print("BEST MOVE piece: " + bestmove.piece + ", rotation: " + bestmove.rotation + ", translation: " + bestmove.translation + ", landingheight: " + bestmove.landingheight + ", rowseliminated: " + bestmove.rowseliminated + ", rowtrans: " + bestmove.rowtrans + ", coltrans: " + bestmove.coltrans + ", holes: "+ bestmove.holes+", wellsums: "+bestmove.wellsums+", rating: " + bestmove.rating);
 
                 rots = bestmove.rotation;
                 trans = bestmove.translation;

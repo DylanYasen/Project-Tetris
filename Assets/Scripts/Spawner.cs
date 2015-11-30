@@ -73,7 +73,7 @@ public class Spawner : MonoBehaviour {
     // Use this for initialization
     void Start () {
         // Choose 1P Mode or AI Mode
-        Group.aimode = true;
+        Group.aimode = false;
 
         //spawnNext();
         firstSelection = new List<int>();
