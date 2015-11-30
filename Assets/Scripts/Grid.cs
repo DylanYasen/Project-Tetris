@@ -66,6 +66,7 @@ public class Grid : MonoBehaviour {
             if (isRowFull(y))
             {
                 deleteRow(y);
+                Group.rowscompleted++;
                 decreaseRowsAbove(y + 1);
                 --y;
             }
