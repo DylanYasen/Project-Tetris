@@ -11,7 +11,7 @@ public class Score : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
 		score = 0;
-		scoreText.text = "Score: " + score.ToString();
+		//scoreText.text = "Score: " + score.ToString();
 	}
 
 
@@ -34,7 +34,7 @@ public class Score : MonoBehaviour {
 			score += 1200;
 			break;
 		}
-		scoreText.text = "Score: " + score.ToString();
+		//scoreText.text = "Score: " + score.ToString();
 	}
 
 	// Update is called once per frame
