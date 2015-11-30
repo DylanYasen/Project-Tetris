@@ -7,6 +7,8 @@ public class Grid : MonoBehaviour {
     public static int h = 20;
     public static Transform[,] grid = new Transform[w, h];
 
+	public static int rowsCleared;
+
     public static Vector2 roundVec2(Vector2 v)
     {
         return new Vector2(Mathf.Round(v.x),
@@ -61,16 +63,20 @@ public class Grid : MonoBehaviour {
 
     public static void deleteFullRows()
     {
+		rowsCleared = 0;
         for (int y= 0; y < h; ++y)
         {
             if (isRowFull(y))
             {
+				rowsCleared++;
                 deleteRow(y);
                 Group.rowscompleted++;
                 decreaseRowsAbove(y + 1);
                 --y;
+
             }
         }
+		FindObjectOfType<Score>().updateScore (rowsCleared);
     }
 	// Use this for initialization
 	void Start () {
