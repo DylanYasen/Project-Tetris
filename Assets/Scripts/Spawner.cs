@@ -3,12 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 
 public class Spawner : MonoBehaviour {
-
+    
     public GameObject[] groups;
     //private int[] firstSelection;
     //private int[] nextSelection;
-    public List<int> firstSelection;
-    public List<int> secondSelection;
+    public static List<int> firstSelection;
+    public static List<int> secondSelection;
+    public static int nextGroup;
 
     public void spawnNext()
     {
@@ -20,10 +21,9 @@ public class Spawner : MonoBehaviour {
             firstSelection = new List<int>(secondSelection);
             generateNextSequence();
         }
-        int nextGroup = firstSelection[0];
+        nextGroup = firstSelection[0];
         firstSelection.RemoveAt(0);
         Instantiate(groups[nextGroup], transform.position, Quaternion.identity);
-
     }
 
     public void spawnCollection()
@@ -45,10 +45,12 @@ public class Spawner : MonoBehaviour {
             int secondInt = Random.Range(0, groups.Length);
             if (!secondSelection.Contains(secondInt)) secondSelection.Add(secondInt);
         }
+        /*
         foreach (var num in firstSelection)
         {
             print(num);
         }
+        */
     }
 
     public void generateNextSequence()
@@ -65,15 +67,22 @@ public class Spawner : MonoBehaviour {
             if (!secondSelection.Contains(secondInt)) secondSelection.Add(secondInt);
         }
     }
+    
 
-	// Use this for initialization
-	void Start () {
+
+    // Use this for initialization
+    void Start () {
+        // Choose 1P Mode or AI Mode
+        Group.aimode = false;
+
         //spawnNext();
         firstSelection = new List<int>();
         secondSelection = new List<int>();
+
         //nextSelection = new int[7];
         spawnCollection();
         spawnNext();
+        
 	}
 	
 	// Update is called once per frame
