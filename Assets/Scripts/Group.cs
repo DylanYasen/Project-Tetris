@@ -572,17 +572,22 @@ public class Group : MonoBehaviour
         for (int i = 0; i < 10; i++)
         {
             hol = false;
-            for (int j = 0; j < 12; j++)
+            for (int j = 12; j >= 0; j-- )
             {
-                //print("i: " + i + " j: " + j);
-                //if (Grid.grid[i, j] == null) hol = true;
-                //if (hol = true && Grid.grid[i, j] != null) holes++;
-                if (Grid.isRowFull(i))
-                    continue;
-                if (Grid.grid[i, j] == null && Grid.grid[i, j + 1] != null)
-                    holes++;
+                if (Grid.grid[i, j] != null) hol = true;
+                else if (Grid.grid[i, j] == null && hol == true) holes++;
             }
-            hol = false;
+                //for (int j = 0; j < 12; j++)
+                //{
+                //    //print("i: " + i + " j: " + j);
+                //    //if (Grid.grid[i, j] == null) hol = true;
+                //    //if (hol = true && Grid.grid[i, j] != null) holes++;
+                //    if (Grid.isRowFull(i))
+                //        continue;
+                //    if (Grid.grid[i, j] == null && Grid.grid[i, j + 1] != null)
+                //        holes++;
+                //}
+                hol = false;
         }
         thismove.holes = holes;
 
