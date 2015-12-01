@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System;
 using System.Threading;
 using System.Collections;
 using System.Collections.Generic;
@@ -421,7 +422,18 @@ public class Group : MonoBehaviour
             v.x += translation;
             v.y -= steps;
             //print("DROPPED: "+v.x + "," + v.y);
-            Grid.grid[(int)v.x, (int)v.y] = child; // 
+            try
+            {
+                Grid.grid[(int)v.x, (int)v.y] = child;
+            }
+            catch (IndexOutOfRangeException e)
+            {
+                Debug.Log("GAME OVER");
+                print("ROWS COMPLETED: " + rowscompleted);
+                Destroy(gameObject);
+            }
+    
+             // 
         }
 
         /* Now that piece is in place, run computations */
@@ -555,16 +567,22 @@ public class Group : MonoBehaviour
         }
         thismove.coltrans = coltrans;
 
+        bool hol = false;
         // 6. Compute number of holes
         for (int i = 0; i < 10; i++)
         {
-            for (int j = 0; j < 12; j++)
+            hol = false;
+            for (int j = 0; j < 18; j++)
             {
+                //print("i: " + i + " j: " + j);
+                //if (Grid.grid[i, j] == null) hol = true;
+                //if (hol = true && Grid.grid[i, j] != null) holes++;
                 if (Grid.isRowFull(i))
                     continue;
                 if (Grid.grid[i, j] == null && Grid.grid[i, j + 1] != null)
                     holes++;
             }
+            hol = false;
         }
         thismove.holes = holes;
 
@@ -836,7 +854,14 @@ public class Group : MonoBehaviour
             v.x += translation;
             v.y -= steps;
 
-            Grid.grid[(int)v.x, (int)v.y] = null;
+            try
+            {
+                Grid.grid[(int)v.x, (int)v.y] = null;
+            }
+            catch (IndexOutOfRangeException e)
+            {
+                print(e.Message);
+            }
         }
 
         // Rotate transform back to initial state if rotated
@@ -1425,7 +1450,7 @@ public class Group : MonoBehaviour
                Spawner.nextGroup == 6)
             {
                 //StartCoroutine(Wait());
-                move bestmove = ComputeBestMove(Spawner.nextGroup);
+                move bestmove = 1(Spawner.nextGroup);
                 print("bestmove: " + bestmove.rotation + ", " + bestmove.translation);
                 DoMove(bestmove.rotation, bestmove.translation);
             }            
