@@ -572,7 +572,7 @@ public class Group : MonoBehaviour
         for (int i = 0; i < 10; i++)
         {
             hol = false;
-            for (int j = 0; j < 18; j++)
+            for (int j = 0; j < 12; j++)
             {
                 //print("i: " + i + " j: " + j);
                 //if (Grid.grid[i, j] == null) hol = true;
